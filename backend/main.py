@@ -5,6 +5,7 @@ from PIL import Image
 import tensorflow as tf
 import io
 import os
+import requests
 
 # Initialize FastAPI app
 app = FastAPI(title="Neuro Assistant - Brain Tumor Detection")
@@ -22,12 +23,26 @@ app.add_middleware(
 BASE_DIR = os.path.dirname(os.path.abspath(__file__))
 MODEL_PATH = "brain_tumor_model.h5"
 MODEL_FILE = os.path.join(BASE_DIR, MODEL_PATH)
+MODEL_URL = os.environ.get("MODEL_URL")
+
+
+def _download_model(url: str, dest_path: str) -> None:
+    os.makedirs(os.path.dirname(dest_path), exist_ok=True)
+    with requests.get(url, stream=True, timeout=60) as response:
+        response.raise_for_status()
+        with open(dest_path, "wb") as file_obj:
+            for chunk in response.iter_content(chunk_size=8 * 1024):
+                if chunk:
+                    file_obj.write(chunk)
 
 if not os.path.exists(MODEL_FILE):
-    raise RuntimeError(
-        "Model file not found: 'brain_tumor_model.h5' in backend folder. "
-        "Run the notebook cell that saves model.save(\"brain_tumor_model.h5\")."
-    )
+    if MODEL_URL:
+        _download_model(MODEL_URL, MODEL_FILE)
+    if not os.path.exists(MODEL_FILE):
+        raise RuntimeError(
+            "Model file not found: 'brain_tumor_model.h5' in backend folder. "
+            "Set MODEL_URL to a downloadable .h5 file or place the file in backend/."
+        )
 
 model = tf.keras.models.load_model(MODEL_FILE)
 
