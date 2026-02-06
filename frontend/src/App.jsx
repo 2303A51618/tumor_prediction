@@ -12,18 +12,54 @@ export default function App() {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
   const [result, setResult] = useState(null);
+  const [isValidMri, setIsValidMri] = useState(true);
 
   const fileName = useMemo(() => (file ? file.name : "No file selected"), [file]);
 
-  const handleFileChange = (event) => {
+  const validateMriLikeImage = (selectedFile) =>
+    new Promise((resolve) => {
+      const img = new Image();
+      img.onload = () => {
+        const canvas = document.createElement("canvas");
+        const ctx = canvas.getContext("2d");
+        const targetSize = 128;
+        canvas.width = targetSize;
+        canvas.height = targetSize;
+        ctx.drawImage(img, 0, 0, targetSize, targetSize);
+        const { data } = ctx.getImageData(0, 0, targetSize, targetSize);
+
+        let diffSum = 0;
+        let samples = 0;
+        for (let i = 0; i < data.length; i += 16) {
+          const r = data[i];
+          const g = data[i + 1];
+          const b = data[i + 2];
+          diffSum += Math.abs(r - g) + Math.abs(r - b) + Math.abs(g - b);
+          samples += 1;
+        }
+
+        const avgDiff = diffSum / samples;
+        resolve(avgDiff < 18);
+      };
+      img.onerror = () => resolve(false);
+      img.src = URL.createObjectURL(selectedFile);
+    });
+
+  const handleFileChange = async (event) => {
     const selected = event.target.files?.[0] || null;
     setFile(selected);
     setResult(null);
     setError("");
+    setIsValidMri(true);
 
     if (selected) {
       const url = URL.createObjectURL(selected);
       setPreviewUrl(url);
+      const looksLikeMri = await validateMriLikeImage(selected);
+      setIsValidMri(looksLikeMri);
+      if (!looksLikeMri) {
+        setError("Invalid MRI image. Please try again.");
+      }
     } else {
       setPreviewUrl("");
     }
@@ -32,6 +68,11 @@ export default function App() {
   const handlePredict = async () => {
     if (!file) {
       setError("Please select a JPG or PNG image.");
+      return;
+    }
+
+    if (!isValidMri) {
+      setError("Invalid MRI image. Please try again.");
       return;
     }
 
