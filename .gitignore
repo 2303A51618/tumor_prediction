@@ -1,0 +1,24 @@
+# Python
+__pycache__/
+*.pyc
+*.pyo
+*.pyd
+.venv/
+venv/
+
+# Jupyter
+.ipynb_checkpoints/
+
+# Node
+node_modules/
+
+# Model artifacts
+*.h5
+
+# Data
+backend/uploads/
+
+# OS/Editor
+.DS_Store
+Thumbs.db
+.vscode/
